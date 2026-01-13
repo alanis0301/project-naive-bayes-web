@@ -4,22 +4,35 @@ Aplicação web desenvolvida em Django para classificação de imagens de aciden
 
 ## 📋 Visão Geral
 
-O projeto consiste em duas partes principais:
+O projeto consiste em três partes principais:
 
-1. **Treinamento do Modelo**: Notebook Jupyter que treina um classificador Naive Bayes para identificar três categorias de imagens:
+1. **Preparação do Dataset**: Notebooks que fazem download e aumento de dados (data augmentation) das imagens de treinamento
+
+2. **Treinamento do Modelo**: Notebook Jupyter que treina um classificador Naive Bayes para identificar três categorias de imagens:
    - Acidentes de trânsito graves
    - Acidentes de trânsito moderados
    - Não acidentes
 
-2. **Aplicação Web**: Interface Django que permite upload de imagens e retorna a predição do modelo treinado.
+3. **Aplicação Web**: Interface Django que permite upload de imagens e retorna a predição do modelo treinado.
 
 ## 🗂️ Estrutura do Projeto
 
 ```
 project-naive-bayes-web/
+├── dataset_preprocessing/         # Preparação do dataset
+│   ├── data_download.ipynb       # Download de imagens via Bing
+│   ├── data_preprocessing.ipynb  # Data augmentation
+│   └── dataset/                  # Imagens originais baixadas
+│       ├── dataset_severe_accident/
+│       ├── dataset_moderate_accident/
+│       └── dataset_no_accident/
+│
 ├── naive_bayes_training/          # Treinamento do modelo
 │   ├── train_model.ipynb          # Notebook de treinamento
-│   └── dataset_finalized/        # Dataset com 720 imagens (240 por classe)
+│   └── dataset_finalized/        # Dataset aumentado com ~720 imagens
+│       ├── dataset_final_severe_accident/
+│       ├── dataset_final_moderate_accident/
+│       └── dataset_final_no_accident/
 │
 └── website/                       # Aplicação Django
     ├── manage.py
@@ -86,9 +99,55 @@ Acesse a aplicação em: **http://127.0.0.1:8000/**
 
 ## 🧠 Fluxo de Funcionamento
 
+### Fase 0: Preparação do Dataset
+
+#### 0.1 Download de Imagens (`data_download.ipynb`)
+
+1. **Instalação**: `pip install icrawler opencv-python pandas`
+
+2. **Download Automatizado**: Usa Bing Image Crawler para baixar ~250 imagens por categoria:
+   - `dataset_severe_accident`: Carros totalmente destruídos, capotados, colisões graves
+   - `dataset_moderate_accident`: Amassados, arranhões, lanternas quebradas
+   - `dataset_no_accident`: Carros normais em diferentes contextos
+
+3. **Estratégia Inteligente**:
+   - 5-6 termos de busca por categoria (inglês e português)
+   - 50 imagens por termo
+   - Total: ~750-900 imagens originais
+
+4. **Processamento em CSV** (opcional):
+   - Converte imagens para 64x64 pixels em escala de cinza
+   - Vetoriza em 4096 valores
+   - Salva em `dataset/dados_acidentes.csv`
+
+5. **Saída**: Imagens salvas em `dataset_preprocessing/dataset/dataset_*_accident/`
+
+#### 0.2 Aumento de Dados (`data_preprocessing.ipynb`)
+
+1. **Instalação**: `pip install tensorflow opencv-python matplotlib numpy`
+
+2. **Data Augmentation**: Aplica 4 transformações em cada imagem original:
+   - ✅ Original (sem alteração)
+   - ✅ Flip horizontal (espelhamento)
+   - ✅ Ajuste de tom/matiz (hue adjustment)
+   - ✅ Flip + ajuste de tom
+
+3. **Multiplicação do Dataset**: Cada imagem vira 4 variações
+   - ~250 imagens → ~1000 imagens por categoria
+   - Total: ~3000-3600 imagens
+
+4. **Normalização**: Garante que todas as imagens estão no range [0, 1]
+
+5. **Saída**: Imagens processadas em `naive_bayes_training/dataset_finalized/`
+   - `dataset_final_severe_accident/`
+   - `dataset_final_moderate_accident/`
+   - `dataset_final_no_accident/`
+
+---
+
 ### Fase 1: Treinamento do Modelo
 
-1. **Dataset**: 720 imagens divididas em 3 classes (240 cada)
+1. **Dataset**: Dataset aumentado (gerado na Fase 0) com centenas de imagens por classe
    - `dataset_final_severe_accident/`
    - `dataset_final_moderate_accident/`
    - `dataset_final_no_accident/`
@@ -173,15 +232,35 @@ def extrair_features_avancadas(img_array):
 - **Total de Features**: 8112
 - **Tempo de Predição**: ~1-2 segundos por imagem
 
-## 🔄 Retreinamento do Modelo
+## 🔄 Fluxo Completo de Retreinamento
 
-Para retreinar o modelo com novos dados:
+Para retreinar o modelo do zero:
 
-1. Adicione imagens nas pastas do dataset em `naive_bayes_training/dataset_finalized/`
-2. Abra o notebook `train_model.ipynb`
-3. Execute todas as células sequencialmente
-4. Os arquivos `modelo_ia.pkl` e `scaler.pkl` serão atualizados em `website/ml_models/`
-5. Reinicie o servidor Django para carregar o novo modelo
+### Opção 1: Com Download de Novas Imagens
+
+1. **Preparar Dataset**:
+   ```powershell
+   cd dataset_preprocessing
+   # Execute data_download.ipynb (download de imagens)
+   # Execute data_preprocessing.ipynb (data augmentation)
+   ```
+
+2. **Treinar Modelo**:
+   ```powershell
+   cd ../naive_bayes_training
+   # Execute train_model.ipynb
+   ```
+
+3. **Atualizar Aplicação**:
+   - Os arquivos `modelo_ia.pkl` e `scaler.pkl` são salvos em `website/ml_models/`
+   - Reinicie o servidor Django
+
+### Opção 2: Apenas Adicionar Imagens Manualmente
+
+1. Adicione imagens diretamente em `dataset_preprocessing/dataset/dataset_*_accident/`
+2. Execute `data_preprocessing.ipynb` para aumentar as novas imagens
+3. Execute `train_model.ipynb` para retreinar
+4. Reinicie o servidor Django
 
 ## 🛠️ Tecnologias Utilizadas
 
